@@ -10,7 +10,7 @@ trait Timestampable
     #[ORM\Column]
     private ?\DateTimeImmutable $updatedAt = null;
 
-public function getCreatedAt(): ?\DateTimeImmutable
+    public function getCreatedAt(): ?\DateTimeImmutable
     {
         return $this->createdAt;
     }
@@ -32,5 +32,14 @@ public function getCreatedAt(): ?\DateTimeImmutable
         $this->updatedAt = $updatedAt;
 
         return $this;
+    }
+
+    #[ORM\PrePersist, ORM\PreUpdate]
+    public function updateTimestamps(): void
+    {
+        if ($this->getCreatedAt() === null) {
+            $this->setCreatedAt(new \DateTimeImmutable);
+        }
+        $this->setUpdatedAt(new \DateTimeImmutable);
     }
 }
