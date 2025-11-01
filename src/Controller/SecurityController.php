@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -44,23 +45,51 @@ class SecurityController extends AbstractController
     {
         $body = json_decode($request->getContent(), true);
 
-        if(!isset($body['firstname'], $body['lastname'], $body['email'], $body['password'])){
+        if(!isset($body['email'], $body['password'])){
             return $this->json(['error' => 'Données invalides'], 400);
         }
       
         /** @var User|null */
-        $user = $userRepository->findBy(['email' => $body['email']]);
+        $user = $userRepository->findOneBy(['email' => $body['email']]);
         if (!$user) {
             return $this->json(['error' => 'Utilisateur introuvable'], 400);
         }
-        echo gettype($user);
         if (!$userPasswordHasher->isPasswordValid($user, $body['password'])) {
             return $this->json(['error' => 'Utilisateur introuvable'], 400);
         }
 
         return $this->json([
             'success' => 'Utilisateur trouvé',
-            'user' => $user,
+            'user' => [
+            'firstname' => $user->getFirstname(),
+            'lastname' => $user->getLastname(),
+            'email' => $user->getEmail(),
+            'role' => $user->getRoles(),
+    ],
+        ], 200);
+    }
+    #[Route('/api/register2', name: 'api_register', methods: ['POST'])]
+    public function register(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $hasher): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        $user = new User();
+        $user->setFirstname($data['firstname']);
+        $user->setLastname($data['lastname']);
+        $user->setEmail($data['email']);
+
+        // Hasher le mot de passe
+        $hashedPassword = $hasher->hashPassword($user, $data['password']);
+        $user->setPassword($hashedPassword);
+
+        $em->persist($user);
+        $em->flush();
+
+        return new JsonResponse([
+            'id' => $user->getId(),
+            'firstname' => $user->getFirstname(),
+            'lastname' => $user->getLastname(),
+            'email' => $user->getEmail()
         ], 200);
     }
 }
